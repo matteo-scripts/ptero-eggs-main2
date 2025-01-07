@@ -19,6 +19,24 @@ log_error() {
     echo -e "${RED}[ERROR] $1${RESET}"
 }
 
+# Check if DOMAIN is set via environment variable
+if [ -z "$DOMAIN" ]; then
+    log_error "No domain provided. Please set the DOMAIN environment variable."
+    exit 1
+else
+    log_success "DOMAIN is set to: $DOMAIN"
+fi
+
+# Replace DOMAIN in Nginx configuration
+if [ -f "/home/container/nginx/conf.d/default.conf" ]; then
+    echo "Replacing DOMAIN in Nginx configuration..."
+    sed -i "s|\\\${DOMAIN}|${DOMAIN}|g" /home/container/nginx/conf.d/default.conf
+    log_success "Replaced DOMAIN in /home/container/nginx/conf.d/default.conf"
+else
+    log_error "Nginx configuration file not found at /home/container/nginx/conf.d/default.conf"
+    exit 1
+fi
+
 # Clean up temp directory
 echo "⏳ Cleaning up temporary files..."
 if rm -rf /home/container/tmp/*; then
@@ -37,11 +55,17 @@ else
     exit 1
 fi
 
-# NGINX if else WIP
+# Start Nginx
 echo "⏳ Starting Nginx..."
+if /usr/sbin/nginx -c /home/container/nginx/nginx.conf -p /home/container/; then
+    log_success "Nginx started successfully."
+else
+    log_error "Failed to start Nginx."
+    exit 1
+fi
+
 # Final message
 log_success "Web server is running. All services started successfully."
-/usr/sbin/nginx -c /home/container/nginx/nginx.conf -p /home/container/
 
-# Keep the container running (optional, depending on your container setup)
+# Keep the container running (optional)
 tail -f /dev/null
